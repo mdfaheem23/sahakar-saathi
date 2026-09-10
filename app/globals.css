@@ -1,0 +1,272 @@
+@import "tailwindcss";
+
+/* ---------------------------------------------------------------------------
+   PACS Sahayak design system
+   Institutional but warm: deep forest green for authority, terracotta for
+   urgency, and a paper-cream ground so long-form legal text stays readable
+   on cheap rural displays and in daylight.
+   --------------------------------------------------------------------------- */
+
+:root {
+  /* Ground */
+  --paper: #faf7f0;
+  --paper-deep: #f2ede1;
+  --surface: #ffffff;
+  --surface-raised: #fffdf9;
+
+  /* Ink */
+  --ink: #12211c;
+  --ink-soft: #48584f;
+  --ink-faint: #7d8b83;
+
+  /* Brand */
+  --forest-900: #062a1f;
+  --forest-800: #0a3d2e;
+  --forest-700: #0f5540;
+  --forest-600: #147354;
+  --forest-500: #1b9068;
+  --forest-100: #dcefe6;
+  --forest-050: #eef7f2;
+
+  /* Accents */
+  --clay-600: #b4500f;
+  --clay-500: #d4681c;
+  --clay-100: #fbe9d9;
+
+  --alert-600: #c0392b;
+  --alert-500: #e04b32;
+  --alert-100: #fce4de;
+
+  --gold-500: #c99a1e;
+  --gold-100: #faf0d1;
+
+  --line: #e6e0d2;
+  --line-strong: #d6cfbd;
+
+  /* Elevation — tinted with the ink hue so shadows feel part of the palette */
+  --shadow-sm: 0 1px 2px rgba(18, 33, 28, 0.05);
+  --shadow-md: 0 2px 4px rgba(18, 33, 28, 0.04), 0 8px 20px -6px rgba(18, 33, 28, 0.09);
+  --shadow-lg: 0 4px 8px rgba(18, 33, 28, 0.05), 0 20px 44px -12px rgba(18, 33, 28, 0.16);
+  --shadow-glow: 0 18px 44px -14px rgba(10, 61, 46, 0.45);
+
+  --radius-sm: 0.5rem;
+  --radius: 0.875rem;
+  --radius-lg: 1.25rem;
+  --radius-xl: 1.75rem;
+}
+
+@theme inline {
+  --color-paper: var(--paper);
+  --color-paper-deep: var(--paper-deep);
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-ink-faint: var(--ink-faint);
+
+  --color-forest-900: var(--forest-900);
+  --color-forest-800: var(--forest-800);
+  --color-forest-700: var(--forest-700);
+  --color-forest-600: var(--forest-600);
+  --color-forest-500: var(--forest-500);
+  --color-forest-100: var(--forest-100);
+  --color-forest-050: var(--forest-050);
+
+  --color-clay-600: var(--clay-600);
+  --color-clay-500: var(--clay-500);
+  --color-clay-100: var(--clay-100);
+
+  --color-alert-600: var(--alert-600);
+  --color-alert-500: var(--alert-500);
+  --color-alert-100: var(--alert-100);
+
+  --color-gold-500: var(--gold-500);
+  --color-gold-100: var(--gold-100);
+
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+
+  /* Fraunces covers Latin only; the Noto faces catch Devanagari and Tamil
+     headings so display type doesn't drop to a browser default mid-page. */
+  --font-display:
+    var(--font-fraunces), var(--font-noto-devanagari), var(--font-noto-tamil),
+    var(--font-noto-telugu), var(--font-noto-kannada), var(--font-noto-malayalam),
+    Georgia, serif;
+  --font-sans:
+    var(--font-body), var(--font-noto-devanagari), var(--font-noto-tamil),
+    var(--font-noto-telugu), var(--font-noto-kannada), var(--font-noto-malayalam),
+    Georgia, "Times New Roman", serif;
+
+  --shadow-card: var(--shadow-md);
+  --shadow-float: var(--shadow-lg);
+}
+
+body {
+  background-color: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Paper grain — barely-there texture so large cream fields don't read as flat
+   dead space. Kept under 3% opacity to survive low-quality projectors. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+body > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Display type: optical sizing high, tight tracking — editorial authority. */
+.font-display {
+  font-family: var(--font-display);
+  font-variation-settings: "SOFT" 0, "WONK" 0, "opsz" 40;
+  letter-spacing: -0.02em;
+}
+
+.text-balance {
+  text-wrap: balance;
+}
+
+/* Hero field: warm paper with a low, off-white wash. Deliberately not a
+   colour block — the display type carries the page, and a saturated field
+   behind it flattens the whole composition. */
+.hero-field {
+  background-color: var(--paper);
+  background-image:
+    radial-gradient(110% 80% at 78% 6%, rgba(212, 154, 88, 0.16) 0%, transparent 58%),
+    radial-gradient(90% 70% at 12% 12%, rgba(20, 115, 84, 0.10) 0%, transparent 60%),
+    linear-gradient(180deg, #fdfbf6 0%, var(--paper) 42%, var(--paper-deep) 100%);
+}
+
+/* Screen field — kept dark, because a powered display should read as lit. */
+.screen-field {
+  background-color: #10151a;
+  background-image:
+    radial-gradient(120% 90% at 15% 10%, rgba(27, 144, 104, 0.34) 0%, transparent 58%),
+    radial-gradient(90% 80% at 92% 96%, rgba(60, 90, 130, 0.28) 0%, transparent 60%);
+}
+
+.hero-grid {
+  background-image:
+    linear-gradient(rgba(18, 33, 28, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(18, 33, 28, 0.045) 1px, transparent 1px);
+  background-size: 44px 44px;
+  mask-image: radial-gradient(70% 60% at 50% 40%, #000 0%, transparent 78%);
+}
+
+/* Cards lift on hover with a shadow that grows downward, not outward, so rows
+   of cards don't visually collide. */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  transition:
+    transform 0.18s cubic-bezier(0.2, 0.7, 0.3, 1),
+    box-shadow 0.18s cubic-bezier(0.2, 0.7, 0.3, 1),
+    border-color 0.18s;
+}
+
+.card-interactive:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-lg);
+  border-color: var(--line-strong);
+}
+
+/* Left keyline used to colour-code list rows by severity. */
+.keyline {
+  position: relative;
+  overflow: hidden;
+}
+
+.keyline::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--keyline-color, var(--forest-500));
+}
+
+@keyframes pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 rgba(212, 104, 28, 0.5);
+  }
+  100% {
+    box-shadow: 0 0 0 18px rgba(212, 104, 28, 0);
+  }
+}
+
+.mic-listening {
+  animation: pulse-ring 1.4s cubic-bezier(0.2, 0.7, 0.3, 1) infinite;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.animate-rise {
+  animation: rise 0.4s cubic-bezier(0.2, 0.7, 0.3, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-rise,
+  .mic-listening {
+    animation: none;
+  }
+  .card {
+    transition: none;
+  }
+}
+
+::selection {
+  background: var(--forest-100);
+  color: var(--forest-900);
+}
+
+/* ---------------------------------------------------------------------------
+   Printing a receipt.
+
+   A kiosk prints one thing: the answer, its date, and the code that re-checks
+   it. Everything else on the page — the chassis illustration, the navigation,
+   the lobby scene — is there to explain the product to someone reading about
+   it, and on paper it is noise wrapped around the only part that matters. On
+   a thermal roll it is also several minutes of paper.
+   --------------------------------------------------------------------------- */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  #pacs-receipt,
+  #pacs-receipt * {
+    visibility: visible;
+  }
+
+  #pacs-receipt {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    max-width: none;
+    padding: 8mm;
+  }
+}

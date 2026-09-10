@@ -1,0 +1,23 @@
+{
+  "pmfby-operational-guidelines": {
+    "etag": "W/\"1a6420-18e988ccc60\"",
+    "lastModified": "Mon, 01 Apr 2024 07:25:48 GMT",
+    "checkedAt": "2026-08-30T18:36:55.481Z"
+  },
+  "pmkisan-operational-guidelines": {
+    "etag": "\"548b7bf92de1d81:0\"",
+    "lastModified": "Sun, 16 Oct 2022 07:07:38 GMT",
+    "contentLength": "824649",
+    "checkedAt": "2026-08-30T18:36:55.525Z"
+  },
+  "nabard-interest-subvention": {
+    "bodySha256": "c9ecf6f837655328fbec61fda35fa32198d61fe2f34ac5cd4a74358fe66bcd55",
+    "contentLength": "5996",
+    "checkedAt": "2026-08-30T18:36:55.526Z"
+  },
+  "mnre-pm-kusum": {
+    "bodySha256": "766e0c4e8ffbe25eb8f39d9c0b1a58632e99d669132f948de05831422c95af7a",
+    "contentLength": "13330",
+    "checkedAt": "2026-08-30T18:36:55.526Z"
+  }
+}

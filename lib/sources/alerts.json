@@ -1,0 +1,11 @@
+{
+  "generatedAt": "2026-09-02T09:29:24.653Z",
+  "alerts": [
+    {
+      "sourceId": "tg-rythu-bima",
+      "kind": "source-unreachable",
+      "detectedOn": "2026-09-02",
+      "detail": "The host no longer exists (ENOTFOUND). This URL cannot be cited as a source until someone finds where the document moved."
+    }
+  ]
+}
