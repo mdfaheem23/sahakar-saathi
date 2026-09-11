@@ -1,0 +1,274 @@
+
+==============================================================================
+lib/knowledge.ts   (10 answers)
+==============================================================================
+
+kb:pmfby-claim-eligibility
+  If your notified crop is damaged by drought, flood, pest attack or a similar covered peril, you can file a PMFBY claim within 72 hours of the event vi…
+  ⤷ PMFBY Operational Guidelines (Revamped, effective Kharif 2020), Clause 21.5.4.2 — Intimation and Assessment of Loss
+  ⤷ verifiedOn: NOT DATED
+
+kb:pmfby-enrollment-deadline
+  Enrollment cut-off dates are fixed per season (Kharif: typically end of July; Rabi: typically end of December) and vary slightly by state and crop — c…
+  ⤷ PMFBY Operational Guidelines (Revamped, effective Kharif 2020), Premium Rates table (p. 22) and Clauses 16.8-16.9 — Seasonality Discipline
+  ⤷ verifiedOn: NOT DATED
+
+kb:pmfby-documents
+  For a PMFBY claim you'll need: Aadhaar card, bank passbook (for the account linked to the claim), land ownership/tenancy record (7/12 extract or state…
+  ⤷ PMFBY Operational Guidelines (Revamped, effective Kharif 2020) — Enrolment Documentation
+  ⤷ verifiedOn: NOT DATED
+
+kb:schemes-overview
+  Ministry of Cooperation schemes currently active for PACS members include: computerisation support for PACS (to digitise records and offer more servic…
+  ⤷ Ministry of Cooperation — Scheme Directory (consolidated)
+  ⤷ verifiedOn: NOT DATED
+
+kb:schemes-kcc-loan
+  PACS-linked Kisan Credit Card loans offer short-term crop credit at a subsidised interest rate (effective 4% p.a. for prompt repayers, after interest …
+  ⤷ Ministry of Cooperation — Kisan Credit Card via PACS Circular
+  ⤷ verifiedOn: NOT DATED
+
+kb:law-member-rights
+  As a registered PACS member you have the right to: vote in general body meetings and elections, inspect the society's records and annual accounts (on …
+  ⤷ Cooperative Societies Act, Sec. 27 — Rights of Members
+  ⤷ verifiedOn: NOT DATED
+
+kb:law-elections
+  PACS managing committee elections are held every 5 years (as per most state model by-laws) under the supervision of the state Cooperative Election Aut…
+  ⤷ State Cooperative Societies By-laws, Model Clause 19 — Elections
+  ⤷ verifiedOn: NOT DATED
+
+kb:law-inspect-records
+  Any member can submit a written request to the PACS secretary to inspect the society's books of account, audit reports, and general body meeting minut…
+  ⤷ Cooperative Societies Act, Sec. 33 — Inspection of Records
+  ⤷ verifiedOn: NOT DATED
+
+kb:grievance-how-to-file
+  I can file a structured grievance for you right now — I'll need your name, phone number, PACS name, the category (loan/claim/by-law/service/other), an…
+  ⤷ PACS Grievance Redressal Procedure, Ministry of Cooperation Circular
+  ⤷ verifiedOn: NOT DATED
+
+kb:grievance-check-status
+  Open the Grievance section and enter your ticket ID (or phone number) to see the live status — open, in progress, or resolved — along with the assigne…
+  ⤷ PACS Grievance Redressal Procedure, Ministry of Cooperation Circular
+  ⤷ verifiedOn: NOT DATED
+
+==============================================================================
+lib/myths.ts   (6 answers)
+==============================================================================
+
+myth:fee-to-file-claim
+  FALSE. Filing a PMFBY claim is completely free. There is no filing fee, no service charge, and no commission payable to any agent, PACS official, or m…
+  ⤷ PMFBY Operational Guidelines (Revamped, effective Kharif 2020), Clause 27 — Service Charges paid by Insurer to Banks/CSCs, not by the farmer
+  ⤷ verifiedOn: NOT DATED
+
+myth:tenant-cannot-insure
+  FALSE. PMFBY explicitly covers tenant farmers and sharecroppers cultivating notified crops. You need proof of cultivation — a sowing certificate, leas…
+  ⤷ PMFBY Operational Guidelines (Revamped, effective Kharif 2020), Clause 3.1 — Coverage of Farmers
+  ⤷ verifiedOn: NOT DATED
+
+myth:claim-money-to-pacs
+  FALSE as stated. PMFBY claim settlements are paid by Direct Benefit Transfer straight into the insured farmer's own bank account — not to the PACS. A …
+  ⤷ PMFBY Operational Guidelines (Revamped, effective Kharif 2020), Clauses 9.5 and 17.5.3 — claims remitted directly to the farmer's pre-declared bank account via PFMS
+  ⤷ verifiedOn: NOT DATED
+
+myth:late-enrollment-possible
+  FALSE — and this is a common fraud. Enrollment cut-off dates are hard deadlines fixed by notification; no payment, agent, or official can enroll you a…
+  ⤷ PMFBY Operational Guidelines (Revamped, effective Kharif 2020), Clauses 16.8 and 16.9 — Seasonality Discipline
+  ⤷ verifiedOn: NOT DATED
+
+myth:loan-refusal-no-reason
+  FALSE. A cooperative society must record and communicate the reason for rejecting a member's loan application in writing. Members also have the right …
+  ⤷ Cooperative Societies Act, Sec. 27 & 33 — Member Rights, Reasoned Decisions
+  ⤷ verifiedOn: NOT DATED
+
+myth:aadhaar-mandatory
+  TRUE. Aadhaar is required for PMFBY enrollment — it is what links your policy to the bank account that receives the Direct Benefit Transfer. This is a…
+  ⤷ PMFBY Operational Guidelines (Revamped, effective Kharif 2020), Clause 6.4.1 — Aadhaar mandatory from Kharif 2017
+  ⤷ verifiedOn: NOT DATED
+
+==============================================================================
+lib/entitlements.ts   (6 answers)
+==============================================================================
+
+ent:pm-kisan
+  PM-KISAN income support — Every landholding farmer family gets ₹6,000/year in three direct transfers.
+  ⤷ PM-KISAN Operational Guidelines, Sec. 3 — Beneficiary Definition
+  ⤷ verifiedOn: NOT DATED
+
+ent:kcc-subvention
+  KCC interest subvention — Crop loans up to ₹3 lakh drop from 7% to an effective 4% if you repay on time — a 3% saving.
+  ⤷ Modified Interest Subvention Scheme (MISS), RBI/NABARD Circular
+  ⤷ verifiedOn: NOT DATED
+
+ent:pmfby-subsidy
+  PMFBY premium subsidy — You pay only 2% of the sum insured for Kharif; the Centre and State pay the rest — typically 4–5× your share.
+  ⤷ PMFBY Operational Guidelines (Revamped, effective Kharif 2020), Premium Rates table (p. 22)
+  ⤷ verifiedOn: NOT DATED
+
+ent:kusum-pump
+  PM-KUSUM solar pump subsidy — 30% central assistance plus at least 30% from the State on a standalone solar pump — you pay at most 40%, and up to 30% …
+  ⤷ PM-KUSUM Component-B — Central Financial Assistance, MNRE
+  ⤷ verifiedOn: NOT DATED
+
+ent:mahila-kisan
+  Mahila Kisan support (women farmers) — Women farmers get a higher subsidy share on equipment and priority in PACS credit allocation.
+  ⤷ MKSP / NRLM Guidelines — Women Farmer Entitlements
+  ⤷ verifiedOn: NOT DATED
+
+ent:godown-subsidy
+  PACS godown / storage subsidy — Members of a PACS building storage infrastructure can access subsidised warehousing instead of distress-selling at har…
+  ⤷ Agriculture Infrastructure Fund — PACS Component, Ministry of Cooperation
+  ⤷ verifiedOn: NOT DATED
+
+==============================================================================
+lib/rag/govSources.ts   (10 answers)
+==============================================================================
+
+gov:pmfby-premium-rates
+  Maximum premium payable by the farmer under PMFBY is 2.0% of the sum insured for Kharif food grain and oilseed crops, 1.5% for Rabi food grain and oil…
+  ⤷ PMFBY Operational Guidelines (Revamped, effective Kharif 2020), Premium Rates table (p. 22)
+  ⤷ verifiedOn: 2026-08-30
+
+gov:pmfby-72-hour-intimation
+  For localised risks and post-harvest losses the insured farmer must intimate the loss within 72 hours of its occurrence. Intimation may be given to th…
+  ⤷ PMFBY Operational Guidelines (Revamped, effective Kharif 2020), Clause 21.5.4.2 and 21.6.3.2 — Intimation of Loss
+  ⤷ verifiedOn: 2026-08-30
+
+gov:pmfby-penal-interest
+  All admissible PMFBY claims must be paid within the stipulated cut-off date. If they are not, penal interest at 12% per annum is payable to the farmer…
+  ⤷ PMFBY Operational Guidelines (Revamped, effective Kharif 2020), Clause 16.12 — Payment of Claims
+  ⤷ verifiedOn: 2026-08-30
+
+gov:pmfby-cutoff-not-extended
+  Once seasonality and enrolment cut-off dates are fixed and notified for a crop season, no request or relaxation for extension is considered or granted…
+  ⤷ PMFBY Operational Guidelines (Revamped, effective Kharif 2020), Clauses 16.8 and 16.9 — Seasonality Discipline
+  ⤷ verifiedOn: 2026-08-30
+
+gov:pmfby-tenant-coverage
+  All farmers including sharecroppers and tenant farmers growing the notified crops in the notified areas are eligible for PMFBY coverage. To establish …
+  ⤷ PMFBY Operational Guidelines (Revamped, effective Kharif 2020), Clause 3.1 — Coverage of Farmers
+  ⤷ verifiedOn: 2026-08-30
+
+gov:pmfby-aadhaar
+  Aadhaar has been made mandatory for availing crop insurance under PMFBY from the Kharif 2017 season onwards. For farmers enrolling through a Common Se…
+  ⤷ PMFBY Operational Guidelines (Revamped, effective Kharif 2020), Clause 6.4.1 — Aadhaar
+  ⤷ verifiedOn: 2026-08-30
+
+gov:pmfby-service-charges
+  Service charges under PMFBY are paid by the Insurance Company to banks and intermediaries — banks receive 4% of the farmer's share of premium, and Com…
+  ⤷ PMFBY Operational Guidelines (Revamped, effective Kharif 2020), Clause 27.1.1 and 27.2.1 — Service Charges
+  ⤷ verifiedOn: 2026-08-30
+
+gov:pmkisan-benefit
+  PM-KISAN provides income support of Rs 6,000 per year to eligible landholding farmer families, transferred by Direct Benefit Transfer in three equal i…
+  ⤷ PM-KISAN Revised Operational Guidelines — Benefit and Beneficiary Definition
+  ⤷ verifiedOn: 2026-08-30
+
+gov:kcc-interest-subvention
+  Under the Modified Interest Subvention Scheme, short-term crop loans up to Rs 3 lakh through a Kisan Credit Card carry a ground-level interest rate of…
+  ⤷ NABARD — Interest Subvention Scheme / Modified Interest Subvention Scheme (MISS)
+  ⤷ verifiedOn: 2026-08-30
+
+gov:pmkusum-component-b
+  Under PM-KUSUM Component-B, an individual farmer installing a standalone solar agriculture pump of up to 7.5 HP receives Central Financial Assistance …
+  ⤷ PM-KUSUM Component-B — Central Financial Assistance, MNRE
+  ⤷ verifiedOn: 2026-08-30
+
+==============================================================================
+lib/rag/stateSchemes.ts   (14 answers)
+==============================================================================
+
+state:ka-zero-interest-crop-loan
+  In Karnataka, short-term agricultural crop loans taken through cooperative societies carry a 0% rate of interest for loans up to Rs 3.00 lakh. Loans f…
+  ⤷ Karnataka Department of Cooperation (Sahakara Sindhu) — Interest Subsidy for Agricultural Crop Loan
+  ⤷ verifiedOn: 2026-08-31
+
+state:ka-medium-term-loan
+  Karnataka provides medium-term and long-term agricultural loans through cooperative institutions at a 3% rate of interest for amounts up to Rs 10.00 l…
+  ⤷ Karnataka Department of Cooperation (Sahakara Sindhu) — Interest Subsidy for Agricultural Crop Loan
+  ⤷ verifiedOn: 2026-08-31
+
+state:ka-yeshasvini
+  Yeshasvini is a health care scheme run for members of cooperative societies in Karnataka, administered by the Yeshasvini Co-operative Members Health C…
+  ⤷ Karnataka Department of Cooperation (Sahakara Sindhu) — Yeshasvini
+  ⤷ verifiedOn: 2026-08-31
+
+state:tg-rythu-bharosa
+  Telangana's Rythu Bharosa provides investment support of Rs 12,000 per acre per year to farmers, paid in two equal instalments of Rs 6,000 per acre fo…
+  ⤷ Rythu Bharosa, Government of Telangana — scheme portal and district scheme pages
+  ⤷ verifiedOn: 2026-08-31
+
+state:tg-rythu-bima
+  Rythu Bima is Telangana's group life insurance scheme for farmers, linked to Rythu Bharosa registration. On the death of an enrolled farmer, Rs 5 lakh…
+  ⤷ Rythu Bima, Government of Telangana — farmer group life insurance
+  ⤷ verifiedOn: 2026-08-31
+
+state:tg-paddy-bonus
+  Telangana pays a bonus of Rs 500 per quintal on paddy, in addition to the investment support paid under Rythu Bharosa. This is a state bonus over and …
+  ⤷ Rythu Bharosa, Government of Telangana — paddy bonus
+  ⤷ verifiedOn: 2026-08-31
+
+state:ap-annadata-sukhibhava
+  Andhra Pradesh provides financial assistance of Rs 20,000 per year per farmer family under Annadata Sukhibhava - PM KISAN. That figure is inclusive of…
+  ⤷ Annadata Sukhibhava, Government of Andhra Pradesh — scheme portal and district scheme pages
+  ⤷ verifiedOn: 2026-08-31
+
+state:kl-paddy-zero-interest
+  In Kerala, agricultural loans for paddy disbursed through cooperative institutions are given at 0% interest on behalf of farmers, and the Department o…
+  ⤷ Department of Cooperation, Government of Kerala — Assistance to Credit Co-operatives/Banks
+  ⤷ verifiedOn: 2026-08-31
+
+state:kl-pacs-paddy-incentive
+  Kerala pays an incentive grant of up to Rs 25,000 per society in a financial year to a Primary Agricultural Credit Society, Farmers Service Cooperativ…
+  ⤷ Department of Cooperation, Government of Kerala — Schemes Applicable to PACS/FSCB/FSCS
+  ⤷ verifiedOn: 2026-08-31
+
+state:kl-karshaka-pension
+  Kerala runs a Karshaka Pension for small and marginal farmers through the Kerala Farmers' Welfare Fund Board, which provides pension and financial sup…
+  ⤷ Kerala Farmers' Welfare Fund Board — Karshaka Pension for small and marginal farmers
+  ⤷ verifiedOn: 2026-08-31
+
+state:tn-paccs-credit
+  In Tamil Nadu, Primary Agricultural Cooperative Credit Societies (PACCS) provide agricultural and non-agricultural credit in rural areas. Agricultural…
+  ⤷ Office of the Registrar of Cooperative Societies, Tamil Nadu — Primary Agricultural Cooperative Credit Societies
+  ⤷ verifiedOn: 2026-08-31
+
+state:tn-crop-loan-terms
+  In Tamil Nadu, cooperatives extend interest-free crop loans to farmers who repay promptly within the due date, on top of the 3% central interest subve…
+  ⤷ Press Information Bureau — Access to cooperative loan to small farmers (Ministry of Cooperation)
+  ⤷ verifiedOn: 2026-08-31
+
+state:tn-pcard-jewel-loan
+  Primary Cooperative Agriculture and Rural Development Banks (PCARD) in Tamil Nadu issue jewel loans to members. Because refinance from NABARD has not …
+  ⤷ Office of the Registrar of Cooperative Societies, Tamil Nadu — Cooperative credit structure
+  ⤷ verifiedOn: 2026-08-31
+
+state:tn-icdp
+  Under the Integrated Cooperative Development Project (ICDP) in Tamil Nadu, Primary Cooperatives receive assistance for construction and repair of godo…
+  ⤷ Office of the Registrar of Cooperative Societies, Tamil Nadu — Integrated Cooperative Development Project
+  ⤷ verifiedOn: 2026-08-31
+
+==============================================================================
+lib/rag/corpus.ts   (4 answers)
+==============================================================================
+
+proc:grievance-escalation
+  A grievance filed against a PACS must be acknowledged and acted on by the society. If it remains unresolved beyond 15 days it is escalated to the dist…
+  ⤷ PACS Grievance Redressal Procedure, Ministry of Cooperation Circular
+  ⤷ verifiedOn: 2026-08-30
+
+proc:pmfby-timeline
+  PMFBY claim timeline: intimate loss within 72 hours of the event. All admissible claims must be paid within the stipulated cut-off date; if they are n…
+  ⤷ PMFBY Operational Guidelines (Revamped, effective Kharif 2020), Clause 16.12 — Payment of Claims
+  ⤷ verifiedOn: 2026-08-30
+
+proc:notified-crops
+  PMFBY only covers crops that the State Government has notified for a given season and area, and coverage is decided at the level of the notified unit …
+  ⤷ PMFBY Operational Guidelines (Revamped, effective Kharif 2020), Clause 3.1 — notified crops in notified areas
+  ⤷ verifiedOn: 2026-08-30
+
+proc:pacs-membership
+  Any resident of the area of operation who is over 18, is not a defaulter to another cooperative, and buys the minimum share capital may apply for PACS…
+  ⤷ Cooperative Societies Act, Sec. 22 — Admission of Members
+  ⤷ verifiedOn: 2026-08-30

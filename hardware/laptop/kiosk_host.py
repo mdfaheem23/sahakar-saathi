@@ -152,6 +152,18 @@ CLAUSE_BREAKS = ",;:،॰"
 MAX_FRAME_BYTES = 2 * SAMPLE_RATE * 2      # 2s of 16-bit mono
 
 
+class ServiceDown(Exception):
+    """The answering service could not be reached.
+
+    Its own class because the alternative was actively misleading: requests'
+    ConnectionError is a subclass of OSError, so a dead `npm run dev` was
+    caught by the board-reconnect handler and reported as "cannot reach the
+    board at 10.176.188.59" - while printing a localhost:3000 URL underneath
+    it. The board was fine. Whoever read that log would go and check the
+    wiring.
+    """
+
+
 class LinkLost(Exception):
     """The board stopped answering - WiFi dropped, reset, or lost power.
 
@@ -323,9 +335,19 @@ def speech_to_text(wav_bytes: bytes):
 
 # --- the service, which is the normal path ---------------------------------
 
+def _service(method, url: str, **kwargs):
+    """One request to the service, with its failures named correctly."""
+    try:
+        resp = method(url, **kwargs)
+        resp.raise_for_status()
+        return resp
+    except requests.RequestException as err:
+        raise ServiceDown(str(err)) from err
+
+
 def backend_stt(wav_bytes: bytes) -> tuple[str, str]:
     """Transcript and the language Sarvam decided it heard, via the service."""
-    resp = requests.post(
+    resp = _service(requests.post,
         f"{BACKEND}/api/stt",
         files={"file": ("query.wav", wav_bytes, "audio/wav")},
         # "unknown" asks for detection. A kiosk cannot make a farmer pick their
@@ -333,7 +355,6 @@ def backend_stt(wav_bytes: bytes) -> tuple[str, str]:
         data={"language_code": "unknown"},
         timeout=60,
     )
-    resp.raise_for_status()
     body = resp.json()
     return body.get("transcript", ""), body.get("languageCode") or FALLBACK_LANGUAGE
 
@@ -364,13 +385,12 @@ def backend_ask_stream(question: str, code: str):
     yielded like any other piece - so they are still spoken, still inside the
     audio, on every answer including a refusal.
     """
-    resp = requests.post(
+    resp = _service(requests.post,
         f"{BACKEND}/api/ask/stream",
         json={"question": question, "lang": code, "state": KIOSK_STATE},
         stream=True,
         timeout=90,
     )
-    resp.raise_for_status()
 
     for line in resp.iter_lines():
         if not line:
@@ -405,12 +425,11 @@ def backend_tts(text: str, tag: str) -> bytes:
     synthesizes at 22050Hz for a browser, and those samples pushed through a
     16000Hz I2S clock come out 37% slow.
     """
-    resp = requests.get(
+    resp = _service(requests.get,
         f"{BACKEND}/api/tts/raw",
         params={"text": text, "lang": tag, "pcm": "1", "rate": str(SAMPLE_RATE)},
         timeout=60,
     )
-    resp.raise_for_status()
 
     got = int(resp.headers.get("X-Sample-Rate", SAMPLE_RATE))
     if got != SAMPLE_RATE:
@@ -666,28 +685,41 @@ def handle_turn(kiosk: Kiosk, captured: np.ndarray):
         kiosk.play(samples.tobytes())
         return
 
-    question, tag = backend_stt(to_wav_bytes(samples))
-    print(f"[stt] ({tag}) {question!r}")
-    if not question.strip():
-        print("[stt] nothing recognised, ignoring")
-        return
-
-    code = lang_code(tag)
-    out_tag = speech_tag(code)
+    # The whole turn under one guard. A service failure is not a board
+    # failure: the socket to the kiosk is still good, so this turn is dropped
+    # and the next one is waited for rather than tearing the link down.
+    # Held outside the guard so the fallback path can still see what was
+    # heard when the failure happened after transcription.
+    question, tag = "", FALLBACK_LANGUAGE
     try:
+        question, tag = backend_stt(to_wav_bytes(samples))
+        print(f"[stt] ({tag}) {question!r}")
+        if not question.strip():
+            print("[stt] nothing recognised, ignoring")
+            return
+
+        code = lang_code(tag)
+        out_tag = speech_tag(code)
         speak_pieces(kiosk, backend_ask_stream(question, code),
                      lambda t: backend_tts(t, out_tag))
         return
     except LinkLost:
         raise
-    except Exception as err:      # noqa: BLE001
+    except ServiceDown as err:
         if not DIRECT_FALLBACK:
-            print(f"[error] service unreachable at {BACKEND}: {err}")
-            print("        Is `npm run dev` running, and is KIOSK_BACKEND its")
-            print("        LAN address? Set KIOSK_DIRECT_FALLBACK=1 to answer")
+            print(f"[error] the service at {BACKEND} is not answering.")
+            print(f"        {err}")
+            print("        The board is fine - this is the laptop side. Start it")
+            print("        with `npm run dev`, or point KIOSK_BACKEND at the")
+            print("        machine running it. KIOSK_DIRECT_FALLBACK=1 answers")
             print("        from Sarvam directly - ungrounded, no citation.")
             return
-        print(f"[warn] service unreachable ({err}); answering WITHOUT provenance")
+        if not question.strip():
+            # The failure was the transcription itself, so there is no
+            # question to answer from anywhere.
+            print(f"[warn] service down before transcription ({err})")
+            return
+        print(f"[warn] service down ({err}); answering WITHOUT provenance")
         answer = get_reply(question, tag)
         print(f"[ai]  {answer!r}")
         speak_pieces(kiosk, split_for_speech(answer),
