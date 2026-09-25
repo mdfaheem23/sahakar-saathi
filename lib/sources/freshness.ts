@@ -1,4 +1,5 @@
 import { LangCode, LocalizedText } from "../types";
+import { applyOverlay } from "../i18n.overlay";
 import { WATCHED_SOURCES, type WatchedSource } from "./registry";
 import fingerprints from "./fingerprints.json";
 import { activeAlerts, alertsForPassage, sourceIdsForPassage, type SourceAlert } from "./alerts";
@@ -102,6 +103,11 @@ const DATE_LOCALE: Record<LangCode, string> = {
   te: "te-IN",
   kn: "kn-IN",
   ml: "ml-IN",
+  mr: "mr-IN",
+  bn: "bn-IN",
+  gu: "gu-IN",
+  pa: "pa-IN",
+  or: "or-IN",
 };
 
 /**
@@ -435,6 +441,9 @@ const NOTICE: Record<TrustReason, { screen: LocalizedText; spoken: LocalizedText
     },
   },
 };
+
+/** Every member-facing string table here, for the translation overlay and its generator. */
+export const FRESHNESS_TEXT = applyOverlay("fresh", { TIER_LABEL, FREE_SERVICE, NOTICE });
 
 const TIER_FOR_REASON: Record<TrustReason, TrustTier> = {
   fresh: "verified",

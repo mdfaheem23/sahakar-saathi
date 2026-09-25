@@ -1,4 +1,5 @@
 import { LangCode, LocalizedText } from "../types";
+import { applyOverlay } from "../i18n.overlay";
 
 /**
  * The half of a conversation that is not a question.
@@ -117,6 +118,8 @@ const REPLIES: Record<SmallTalkIntent, LocalizedText> = {
     ml: "ഞാൻ PACS സഹായക് ആണ്, സഹകരണ സംഘ അംഗങ്ങൾക്കും കർഷകർക്കും ഉള്ള സൗജന്യ സഹായി. ഞാൻ സർക്കാർ രേഖകളിൽ നിന്ന് മാത്രമേ ഉത്തരം നൽകൂ — വിള ഇൻഷുറൻസ് നിയമങ്ങൾ, സഹകരണ നിയമം, മന്ത്രാലയ പദ്ധതികൾ, പരാതി നടപടിക്രമം — ഓരോ ഉത്തരവും ഏത് രേഖയിൽ നിന്നാണെന്നും ഞാൻ പറയും. അറിയാത്തത് ഊഹിക്കാതെ അറിയില്ല എന്ന് തുറന്നു പറയും. നിങ്ങളുടെ സ്വന്തം ഭാഷയിൽ ചോദിക്കൂ.",
   },
 };
+applyOverlay("smalltalk", REPLIES);
+export { REPLIES as SMALLTALK_REPLIES };
 
 /**
  * Words that carry no question with them.

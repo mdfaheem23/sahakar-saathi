@@ -1,8 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
+import { speechTagFor, SUPPORTED_LANGS } from "@/lib/i18n";
+import { bhashiniTranscribe, hasBhashini } from "@/lib/speech/bhashini";
+import { LangCode } from "@/lib/types";
+
+export const runtime = "nodejs";
 
 /**
- * Proxies audio to Sarvam's Speech-to-Text API. The API key stays server-side
- * — the browser never sees it, it only ever talks to this route.
+ * Speech-to-text. Bhashini first, Sarvam as the backup. Keys stay
+ * server-side — the browser only ever talks to this route.
+ *
+ * Bhashini ASR transcribes in a stated language, so it runs when the caller
+ * sends a language hint (the member's interface language) and 16 kHz WAV.
+ * Sarvam can detect the language itself, so it serves the calls that arrive
+ * with no hint — the walk-up kiosk — and every call Bhashini could not.
  */
 
 // Sarvam validates the upload's Content-Type by exact string match, so a
@@ -25,12 +35,15 @@ const EXTENSION_BY_TYPE: Record<string, string> = {
 /** Below this a recording is almost certainly container header only. */
 const MIN_AUDIO_BYTES = 1200;
 
-export async function POST(req: NextRequest) {
-  const apiKey = process.env.SARVAM_API_KEY;
-  if (!apiKey) {
-    return NextResponse.json({ error: "SARVAM_API_KEY is not configured" }, { status: 500 });
-  }
+/** A language the caller named, or null for "unknown" or anything we do not serve. */
+function hintLang(raw: string | null): LangCode | null {
+  if (!raw || raw === "unknown") return null;
+  const base = raw.toLowerCase().split("-")[0];
+  const lang = (base === "od" ? "or" : base) as LangCode;
+  return SUPPORTED_LANGS.includes(lang) ? lang : null;
+}
 
+export async function POST(req: NextRequest) {
   let incoming: FormData;
   try {
     incoming = await req.formData();
@@ -59,6 +72,27 @@ export async function POST(req: NextRequest) {
       { error: "Recording too short", code: "too_short" },
       { status: 422 }
     );
+  }
+
+  const hint = hintLang(incoming.get("hint") as string | null) ?? hintLang(languageCode);
+
+  if (hasBhashini() && hint && (baseType === "audio/wav" || baseType === "audio/x-wav")) {
+    const transcript = await bhashiniTranscribe(Buffer.from(bytes).toString("base64"), hint);
+    if (transcript) {
+      console.log(`[stt] bhashini heard=${JSON.stringify(transcript)} lang=${hint} bytes=${bytes.byteLength}`);
+      return NextResponse.json({
+        transcript,
+        languageCode: speechTagFor(hint),
+        languageProbability: null,
+        provider: "bhashini",
+      });
+    }
+    console.warn("[stt] Bhashini could not transcribe; falling back to Sarvam");
+  }
+
+  const apiKey = process.env.SARVAM_API_KEY;
+  if (!apiKey) {
+    return NextResponse.json({ error: "No speech-to-text provider is available" }, { status: 503 });
   }
 
   const normalized = new Blob([bytes], { type: baseType });
@@ -104,5 +138,6 @@ export async function POST(req: NextRequest) {
     transcript,
     languageCode: detectedLanguage,
     languageProbability,
+    provider: "sarvam",
   });
 }

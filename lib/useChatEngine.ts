@@ -21,7 +21,7 @@ function nextId() {
 export interface RetrievalMeta {
   mode: "hybrid" | "lexical";
   /** Which vector store served the dense half — or that none did. */
-  semanticBackend?: "pinecone" | "in-process" | "none";
+  semanticBackend?: "pgvector" | "in-process" | "none";
   passages: {
     id: string;
     source: string;

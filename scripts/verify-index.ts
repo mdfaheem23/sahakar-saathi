@@ -1,6 +1,6 @@
 /**
- * Reports what is actually stored in Pinecone, and whether it still matches
- * the corpus in this build.
+ * Reports whether the baked vectors and the pgvector index still match the
+ * corpus in this build.
  *
  *   npm run verify:index
  *
@@ -11,56 +11,44 @@
 import { config } from "dotenv";
 config({ path: ".env", quiet: true });
 
+import BAKED from "@/lib/rag/vectors.json";
 import { CORPUS } from "@/lib/rag/corpus";
-import { getIndex, hasPineconeConfig, pineconeIndexName } from "@/lib/rag/pinecone";
+import { EMBED_MODEL, passageText, textHash } from "@/lib/rag/embeddings";
+import { adminSecret, hasDatabase, rpc } from "@/lib/server/supabase";
+
+function report(label: string, stored: Map<string, { model: string; hash: string }>): number {
+  let stale = 0;
+  let missing = 0;
+  for (const c of CORPUS) {
+    const row = stored.get(c.id);
+    if (!row) missing++;
+    else if (row.model !== EMBED_MODEL || row.hash !== textHash(passageText(c))) stale++;
+  }
+  const orphans = [...stored.keys()].filter((id) => !CORPUS.some((c) => c.id === id)).length;
+  console.log(`${label.padEnd(12)}: ${stored.size} stored · ${missing} missing · ${stale} stale · ${orphans} orphaned`);
+  return missing + stale + orphans;
+}
 
 async function main() {
-  if (!hasPineconeConfig()) {
-    throw new Error("PINECONE_API_KEY is not set");
-  }
-
-  const index = getIndex();
-  const stats = await index.describeIndexStats();
-  const stored = stats.totalRecordCount ?? 0;
-
-  console.log(`index          : ${pineconeIndexName()}`);
-  console.log(`dimension      : ${stats.dimension}`);
-  console.log(`vectors stored : ${stored}`);
-  console.log(`corpus chunks  : ${CORPUS.length}`);
-  console.log(
-    stored === CORPUS.length
-      ? "status         : IN SYNC — every chunk is indexed\n"
-      : `status         : DRIFT — run \`npm run index:corpus\`\n`
+  console.log(`corpus      : ${CORPUS.length} chunks · ${EMBED_MODEL}`);
+  const baked = BAKED as { model: string; vectors: Record<string, { hash: string }> };
+  let problems = report(
+    "vectors.json",
+    new Map(Object.entries(baked.vectors).map(([id, v]) => [id, { model: baked.model, hash: v.hash }]))
   );
 
-  // Which chunks are missing from the index, and which vectors are orphaned.
-  const ids = CORPUS.map((c) => c.id);
-  // SDK v8 takes { ids }, not a bare array.
-  const fetched = await index.fetch({ ids });
-  const present = new Set(Object.keys(fetched.records));
-  const missing = ids.filter((id) => !present.has(id));
-  if (missing.length) {
-    console.log(`missing from index (${missing.length}):`);
-    for (const m of missing) console.log(`  - ${m}`);
-    console.log();
+  if (hasDatabase()) {
+    const rows = await rpc<{ chunk_id: string; model: string; text_hash: string }[]>("admin_vector_status", {
+      p_secret: adminSecret(),
+    });
+    problems += report("pgvector", new Map(rows.map((r) => [r.chunk_id, { model: r.model, hash: r.text_hash }])));
   }
 
-  const sampleId = "gov:pmfby-premium-rates";
-  const rec = fetched.records[sampleId];
-  if (rec) {
-    const m = (rec.metadata ?? {}) as Record<string, string>;
-    console.log("--- what one stored vector looks like ---");
-    console.log(`id       : ${rec.id}`);
-    const values = rec.values ?? [];
-    console.log(`values   : ${values.length} floats (first 4: ${values.slice(0, 4).map((v) => v.toFixed(4)).join(", ")})`);
-    console.log(`agent    : ${m.agent}`);
-    console.log(`source   : ${m.source}`);
-    console.log(`url      : ${m.url || "(unverified)"}`);
-    console.log(`verified : ${m.verifiedOn || "(never)"}`);
+  if (problems) {
+    console.log("\nout of date — run npm run index:corpus");
+    process.exit(1);
   }
-
-  const verified = CORPUS.filter((c) => c.verifiedOn).length;
-  console.log(`\nprovenance     : ${verified}/${CORPUS.length} chunks cite a source document URL`);
+  console.log("\nin sync");
 }
 
 main().catch((err) => {

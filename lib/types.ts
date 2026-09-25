@@ -1,6 +1,6 @@
 import type { Provenance } from "./sources/freshness";
 
-export type LangCode = "en" | "hi" | "ta" | "te" | "kn" | "ml";
+export type LangCode = "en" | "hi" | "ta" | "te" | "kn" | "ml" | "mr" | "bn" | "gu" | "pa" | "or";
 
 /**
  * Text with translations for some languages and always an English original.

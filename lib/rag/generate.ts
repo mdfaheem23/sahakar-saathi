@@ -1,37 +1,15 @@
 import { LangCode } from "../types";
 import { RetrievedChunk } from "./hybrid";
-import { mistralFetch } from "./mistralFetch";
-
-export const CHAT_ENDPOINT = "https://api.mistral.ai/v1/chat/completions";
 
 /**
- * `mistral-large-latest` is gated behind a paid subscription tier and returns
- * 403 tier_not_allowed on a free key, which took down generation *and* the
- * translation fallback together — leaving non-English speakers with the
- * English passage. `mistral-medium-latest` is available on the free tier and
- * handles Indic-language generation well. Override with MISTRAL_CHAT_MODEL.
- */
-export const CHAT_MODEL = process.env.MISTRAL_CHAT_MODEL ?? "mistral-medium-latest";
-
-/**
- * The models to try, in order, when the preferred one will not serve.
+ * BharatGen Param-2 — the primary model.
  *
- * Mistral rate-limits per model, not per key: on the tier this runs on
- * `mistral-medium-latest` returns 429 for minutes at a time while
- * `ministral-8b-latest` answers immediately. Holding out for one model turns
- * that into a silent quality collapse — generation throws, the route falls
- * back to reciting the top retrieved passage, and the member is read a
- * paragraph about the Telangana paddy bonus when they asked what to do about
- * their flooded field. A smaller model answering the question actually asked
- * is worth more than a better model that is not answering at all.
- *
- * Order matters and quality is the ordering. Every model here is given the
- * same grounded context and the same refusal contract, so a weaker one can
- * write a plainer sentence but cannot invent a fact the corpus does not hold.
+ * Open weights, served with vLLM (or SGLang) behind the OpenAI-compatible
+ * chat API, on IndiaAI Mission GPUs in production. PARAM2_BASE_URL points at
+ * that server, e.g. `http://gpu-host:8000/v1`. PARAM2_API_KEY is sent as a
+ * bearer token when the server was started with `--api-key`.
  */
-export const CHAT_MODEL_CHAIN: string[] = [
-  ...new Set([CHAT_MODEL, "mistral-small-latest", "ministral-8b-latest", "open-mistral-7b"]),
-];
+export const PARAM2_MODEL = process.env.PARAM2_MODEL ?? "bharatgenai/Param2-17B-A2.4B-Thinking";
 
 /** Sarvam speaks the same OpenAI-shaped protocol, so only the address differs. */
 export const SARVAM_CHAT_ENDPOINT = "https://api.sarvam.ai/v1/chat/completions";
@@ -39,62 +17,74 @@ export const SARVAM_CHAT_MODEL =
   process.env.SARVAM_CHAT_MODEL ?? "sarvam-105b-conversations";
 
 interface ChatProvider {
+  name: "param2" | "sarvam";
   model: string;
   endpoint: string;
   headers: Record<string, string>;
-  /** Mistral's shared limiter waits out a 429; Sarvam's key is not shared. */
-  retrying: boolean;
+  /** Extra request fields this provider needs. */
+  extra: Record<string, unknown>;
 }
 
 /**
- * Who to ask, in order.
+ * Who to ask, in order: Param-2, then Sarvam.
  *
- * Sarvam leads because of a measurement, not a preference. Mistral rate-limits
- * per model on this tier, and the recovery is expensive twice over: each model
- * is retried through a backoff before the chain moves on, so a rate-limited
- * key costs roughly 1.2s + 2.4s per model across four models. Measured from
- * the kiosk that was 16.4s to answer one question, of which about 7 seconds
- * was this function asleep. Sarvam answered the same question in 2.3s on the
- * same key the speech path already uses.
- *
- * The Mistral chain stays behind it, unchanged: it is the fallback now rather
- * than the first call, and it still walks its own models if Sarvam is down.
- * Both get the same grounded context and the same refusal contract, so which
- * one answered changes the phrasing and never the facts.
- *
- * Embeddings are untouched and still Mistral - this is only about who writes
- * the sentence.
+ * Both are Indian models and both get the same grounded context and the same
+ * refusal contract, so which one answered changes the phrasing and never the
+ * facts. Param-2 is skipped when no server is configured, which is the normal
+ * state of a laptop demo without a GPU; Sarvam then answers everything.
  */
 function chatProviders(): ChatProvider[] {
   const out: ChatProvider[] = [];
 
-  const sarvam = process.env.SARVAM_API_KEY;
-  if (sarvam) {
+  const base = process.env.PARAM2_BASE_URL?.replace(/\/+$/, "");
+  if (base) {
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (process.env.PARAM2_API_KEY) headers.Authorization = `Bearer ${process.env.PARAM2_API_KEY}`;
     out.push({
-      model: SARVAM_CHAT_MODEL,
-      endpoint: SARVAM_CHAT_ENDPOINT,
-      headers: { Authorization: `Bearer ${sarvam}`, "Content-Type": "application/json" },
-      retrying: false,
+      name: "param2",
+      model: PARAM2_MODEL,
+      endpoint: `${base}/chat/completions`,
+      headers,
+      // The Thinking checkpoint reasons before it answers; vLLM's chat
+      // template takes this switch to keep that out of the reply.
+      extra: { chat_template_kwargs: { enable_thinking: false } },
     });
   }
 
-  const mistral = process.env.MISTRAL_API_KEY;
-  if (mistral) {
-    for (const model of CHAT_MODEL_CHAIN) {
-      out.push({
-        model,
-        endpoint: CHAT_ENDPOINT,
-        headers: { Authorization: `Bearer ${mistral}`, "Content-Type": "application/json" },
-        retrying: true,
-      });
-    }
+  const sarvam = process.env.SARVAM_API_KEY;
+  if (sarvam) {
+    out.push({
+      name: "sarvam",
+      model: SARVAM_CHAT_MODEL,
+      endpoint: SARVAM_CHAT_ENDPOINT,
+      headers: { Authorization: `Bearer ${sarvam}`, "Content-Type": "application/json" },
+      extra: {},
+    });
   }
 
   return out;
 }
 
+/** Which models would answer, in order — for the health check and the logs. */
+export function chatProviderNames(): string[] {
+  return chatProviders().map((p) => `${p.name}:${p.model}`);
+}
+
+export function hasChatProvider(): boolean {
+  return chatProviders().length > 0;
+}
+
 /**
- * Posts a chat request, walking down the provider chain on a rate limit.
+ * How long Param-2 gets before the backup is asked.
+ *
+ * A self-hosted GPU that is asleep or unreachable must not hold a member at
+ * the counter; Sarvam answering in two seconds beats Param-2 answering in
+ * twenty.
+ */
+const PRIMARY_TIMEOUT_MS = Number(process.env.PARAM2_TIMEOUT_MS ?? 12_000);
+
+/**
+ * Posts a chat request, walking down the provider chain on any failure.
  *
  * Returns the response and the model that produced it, so the caller can log
  * which one actually answered — "the reply got shorter today" is otherwise an
@@ -106,43 +96,54 @@ export async function chatFetch(
 ): Promise<{ res: Response; model: string }> {
   const chain = chatProviders();
   if (chain.length === 0) {
-    throw new Error("No chat provider configured: set SARVAM_API_KEY or MISTRAL_API_KEY");
+    throw new Error("No chat provider configured: set PARAM2_BASE_URL or SARVAM_API_KEY");
   }
 
   let last: Response | null = null;
 
-  for (const provider of chain) {
-    const init: RequestInit = {
-      method: "POST",
-      headers: provider.headers,
-      body: JSON.stringify({ ...payload, model: provider.model }),
-    };
-    const tag = `${label}:${provider.model}`;
-    const res = provider.retrying
-      ? await mistralFetch(provider.endpoint, init, tag)
-      : await fetch(provider.endpoint, init);
-
-    if (res.ok) {
-      if (provider.model !== chain[0].model) {
-        console.warn(`[${label}] answered with ${provider.model} — ${chain[0].model} would not serve`);
+  for (const [i, provider] of chain.entries()) {
+    const isLast = i === chain.length - 1;
+    const ctrl = new AbortController();
+    // Only the first-byte wait is bounded; a stream that has started runs on.
+    const timer = isLast ? null : setTimeout(() => ctrl.abort(), PRIMARY_TIMEOUT_MS);
+    try {
+      const res = await fetch(provider.endpoint, {
+        method: "POST",
+        headers: provider.headers,
+        body: JSON.stringify({ ...payload, ...provider.extra, model: provider.model }),
+        signal: ctrl.signal,
+      });
+      if (res.ok || isLast) {
+        if (i > 0) console.warn(`[${label}] answered with ${provider.model} — ${chain[0].model} would not serve`);
+        return { res, model: provider.model };
       }
-      return { res, model: provider.model };
+      console.warn(`[${label}] ${provider.model} returned ${res.status}, trying the next provider`);
+      await res.body?.cancel().catch(() => {});
+      last = res;
+    } catch (err) {
+      if (isLast) throw err;
+      console.warn(`[${label}] ${provider.model} unreachable (${String(err)}), trying the next provider`);
+    } finally {
+      if (timer) clearTimeout(timer);
     }
-
-    // 429 is this provider being busy; anything else from Mistral is a request
-    // its other models would reject identically. Sarvam failing for any reason
-    // still hands over to Mistral, because they are different services and a
-    // fault in one says nothing about the other.
-    if (res.status !== 429 && provider.retrying) return { res, model: provider.model };
-
-    console.warn(`[${label}] ${provider.model} returned ${res.status}, trying the next provider`);
-    await res.body?.cancel().catch(() => {});
-    last = res;
   }
 
-  // Everything refused. Hand back the last response so the caller reports the
-  // real status rather than a synthesised one.
   return { res: last as Response, model: chain[chain.length - 1].model };
+}
+
+/**
+ * Removes reasoning a model wrote into its answer.
+ *
+ * Param-2's Thinking checkpoint wraps its reasoning in <think> tags when the
+ * server does not split it out. None of that may reach a member: it is read
+ * aloud, and it is exactly the ungrounded musing the refusal contract exists
+ * to keep off the screen.
+ */
+export function stripReasoning(text: string): string {
+  const closed = text.replace(/<think>[\s\S]*?<\/think>/gi, "");
+  // An unterminated block means the model ran out of room mid-thought.
+  const open = closed.search(/<think>/i);
+  return (open >= 0 ? closed.slice(0, open) : closed).trim();
 }
 
 /** Language names as written into prompts. Shared with the translation step. */
@@ -153,6 +154,11 @@ export const LANG_NAME: Record<LangCode, string> = {
   te: "Telugu (తెలుగు)",
   kn: "Kannada (ಕನ್ನಡ)",
   ml: "Malayalam (മലയാളം)",
+  mr: "Marathi (मराठी)",
+  bn: "Bengali (বাংলা)",
+  gu: "Gujarati (ગુજરાતી)",
+  pa: "Punjabi (ਪੰਜਾਬੀ, Gurmukhi script)",
+  or: "Odia (ଓଡ଼ିଆ)",
 };
 
 /**
@@ -307,13 +313,13 @@ export async function generateAnswer(
   );
 
   if (!res.ok) {
-    throw new Error(`Mistral chat failed (${res.status}): ${await res.text()}`);
+    throw new Error(`Chat failed (${res.status}): ${await res.text()}`);
   }
 
   const json = (await res.json()) as {
     choices: { message: { content: string } }[];
   };
-  const raw = (json.choices?.[0]?.message?.content ?? "").trim();
+  const raw = stripReasoning(json.choices?.[0]?.message?.content ?? "");
 
   if (raw.includes("INSUFFICIENT_CONTEXT")) {
     return { text: "", insufficient: true, citedIndex: null };
@@ -348,16 +354,21 @@ export async function* streamAnswer(
   );
 
   if (!res.ok || !res.body) {
-    throw new Error(`Mistral stream failed (${res.status}): ${await res.text()}`);
+    throw new Error(`Chat stream failed (${res.status}): ${await res.text()}`);
   }
 
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
+  const think = new ThinkFilter();
 
   while (true) {
     const { done, value } = await reader.read();
-    if (done) break;
+    if (done) {
+      const rest = think.flush();
+      if (rest) yield rest;
+      break;
+    }
     buffer += decoder.decode(value, { stream: true });
 
     // SSE frames are newline-delimited; the last fragment may be partial.
@@ -368,16 +379,64 @@ export async function* streamAnswer(
       const trimmed = line.trim();
       if (!trimmed.startsWith("data:")) continue;
       const payload = trimmed.slice(5).trim();
-      if (payload === "[DONE]") return;
+      if (payload === "[DONE]") {
+        const rest = think.flush();
+        if (rest) yield rest;
+        return;
+      }
       try {
         const json = JSON.parse(payload) as {
           choices: { delta?: { content?: string } }[];
         };
         const delta = json.choices?.[0]?.delta?.content;
-        if (delta) yield delta;
+        const visible = delta ? think.push(delta) : "";
+        if (visible) yield visible;
       } catch {
         // Ignore keep-alive and malformed frames rather than aborting.
       }
     }
+  }
+}
+
+/**
+ * `stripReasoning` for a stream: holds back anything inside <think>…</think>,
+ * including a tag split across two deltas.
+ */
+class ThinkFilter {
+  private pending = "";
+  private inThink = false;
+
+  push(delta: string): string {
+    this.pending += delta;
+    let out = "";
+    while (true) {
+      if (this.inThink) {
+        const end = this.pending.indexOf("</think>");
+        if (end < 0) {
+          this.pending = this.pending.slice(-"</think>".length);
+          return out;
+        }
+        this.pending = this.pending.slice(end + "</think>".length);
+        this.inThink = false;
+      } else {
+        const start = this.pending.indexOf("<think>");
+        if (start < 0) {
+          // Keep a tail that could be the start of a tag arriving next.
+          const keep = "<think>".length - 1;
+          out += this.pending.slice(0, Math.max(0, this.pending.length - keep));
+          this.pending = this.pending.slice(Math.max(0, this.pending.length - keep));
+          return out;
+        }
+        out += this.pending.slice(0, start);
+        this.pending = this.pending.slice(start + "<think>".length);
+        this.inThink = true;
+      }
+    }
+  }
+
+  flush(): string {
+    const rest = this.inThink ? "" : this.pending;
+    this.pending = "";
+    return rest;
   }
 }

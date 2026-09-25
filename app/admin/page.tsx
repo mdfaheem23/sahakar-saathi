@@ -21,7 +21,7 @@ const SEED_AGENT_COUNTS: Record<AgentId, number> = {
   cooperative_law: 96,
   grievance: 58,
 };
-const SEED_LANG_COUNTS: Record<LangCode, number> = {
+const SEED_LANG_COUNTS: Partial<Record<LangCode, number>> = {
   hi: 214, ta: 132, en: 113, te: 74, kn: 61, ml: 48,
 };
 const SEED_RESOLVED = 419;
@@ -73,7 +73,7 @@ export default function AdminPage() {
   }, []);
 
   const agentCounts: Record<AgentId, number> = { ...SEED_AGENT_COUNTS };
-  const langCounts: Record<LangCode, number> = { ...SEED_LANG_COUNTS };
+  const langCounts: Partial<Record<LangCode, number>> = { ...SEED_LANG_COUNTS };
   let resolved = SEED_RESOLVED;
   let total = SEED_TOTAL;
 
@@ -85,7 +85,7 @@ export default function AdminPage() {
   }
 
   const maxAgent = Math.max(...Object.values(agentCounts));
-  const maxLang = Math.max(...Object.values(langCounts));
+  const maxLang = Math.max(0, ...Object.values(langCounts).map((n) => n ?? 0));
   const resolutionRate = total === 0 ? 0 : Math.round((resolved / total) * 100);
   const openGrievances = grievances.filter((g) => g.status !== "resolved").length;
   const patterns = detectPatterns(grievances);

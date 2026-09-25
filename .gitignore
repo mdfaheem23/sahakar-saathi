@@ -52,3 +52,6 @@ __pycache__/
 /gen.py
 /build_sih_deck.py
 /docs/SIH-judge-questions.pdf
+
+# multilingual-e5 model download cache
+.cache/

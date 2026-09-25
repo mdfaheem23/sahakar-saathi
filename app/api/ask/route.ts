@@ -1,7 +1,6 @@
 import { NextRequest } from "next/server";
 import { retrieve, hasUsableContext } from "@/lib/rag/hybrid";
-import { generateAnswer } from "@/lib/rag/generate";
-import { hasMistralKey } from "@/lib/rag/embeddings";
+import { generateAnswer, hasChatProvider } from "@/lib/rag/generate";
 import { translatePassage } from "@/lib/rag/translate";
 import type { Chunk } from "@/lib/rag/corpus";
 import { LangCode } from "@/lib/types";
@@ -111,7 +110,8 @@ interface AskBody {
 /**
  * Hybrid-RAG question answering.
  *
- * Retrieval always runs. Generation runs only when a Mistral key is present;
+ * Retrieval always runs. Generation runs only when a chat model (Param-2 or
+ * Sarvam) is configured;
  * without one the route still returns the retrieved passage and its citation,
  * so the demo degrades to grounded-extractive instead of failing outright.
  */
@@ -276,7 +276,7 @@ export async function POST(req: NextRequest) {
 
   const top = results[0];
 
-  if (!hasMistralKey()) {
+  if (!hasChatProvider()) {
     const rendered = await renderInLanguage(top.chunk, lang);
     return respond({
       answer: rendered.text,

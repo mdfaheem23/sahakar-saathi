@@ -1,11 +1,11 @@
 import { Chunk, CORPUS } from "./corpus";
 import { BM25Index } from "./bm25";
-import { cosineSimilarity, embedQuery, getCorpusVectors, hasMistralKey } from "./embeddings";
-import { hasPineconeConfig, queryVectors } from "./pinecone";
+import { cosineSimilarity, embedQuery, getCorpusVectors, hasEmbeddings } from "./embeddings";
+import { hasVectorStore, queryVectors } from "./vectorStore";
 import { stateFromQuery } from "./stateSchemes";
 
 /**
- * Hybrid retrieval: BM25 (lexical) + Mistral embeddings (semantic), combined
+ * Hybrid retrieval: BM25 (lexical) + multilingual-e5 embeddings (semantic), combined
  * with Reciprocal Rank Fusion.
  *
  * Why both: lexical alone misses paraphrase ("they took a cut" vs "service
@@ -28,9 +28,9 @@ export interface RetrievedChunk {
 }
 
 /** Which store answered the dense half of this query. */
-export type SemanticBackend = "pinecone" | "in-process" | "none";
+export type SemanticBackend = "pgvector" | "in-process" | "none";
 
-// Chunk id -> corpus position, so a Pinecone match resolves back to the full
+// Chunk id -> corpus position, so a pgvector match resolves back to the full
 // chunk (canned translations, aliases) rather than only its stored metadata.
 const INDEX_BY_ID = new Map(CORPUS.map((c, i) => [c.id, i]));
 
@@ -69,15 +69,15 @@ export async function retrieve(
   let usedSemantic = false;
   let semanticBackend: SemanticBackend = "none";
 
-  if (hasMistralKey()) {
+  if (hasEmbeddings()) {
     try {
       const queryVec = await embedQuery(query);
 
-      // Pinecone when it is configured, the in-process vectors otherwise. The
+      // pgvector when it is configured, the in-process vectors otherwise. The
       // fallback is not a nicety: the kiosk runs without connectivity, and a
       // hard dependency on a hosted index would take dense retrieval away
       // exactly where the members with no other channel are being served.
-      if (hasPineconeConfig()) {
+      if (hasVectorStore()) {
         try {
           const matches = await queryVectors(queryVec, CANDIDATES);
           let rank = 0;
@@ -100,25 +100,25 @@ export async function retrieve(
             // silently thinner dense results look exactly like a corpus that
             // simply has nothing relevant, and the fix is `npm run index:corpus`.
             console.warn(
-              `[rag] ${dropped}/${matches.length} Pinecone matches are not in this build's corpus - re-run index:corpus`
+              `[rag] ${dropped}/${matches.length} pgvector matches are not in this build's corpus - re-run index:corpus`
             );
           }
 
-          // Only claim Pinecone answered if it actually contributed a ranking.
+          // Only claim pgvector answered if it actually contributed a ranking.
           // An index that is empty, or entirely stale relative to this build,
           // returns matches that all resolve to nothing - and treating that as
           // a successful semantic pass left retrieval lexical-only while
           // reporting itself as hybrid, which is the harder failure to see.
           if (rank > 0) {
             usedSemantic = true;
-            semanticBackend = "pinecone";
+            semanticBackend = "pgvector";
           } else {
-            console.warn("[rag] Pinecone returned no usable match, using in-process vectors");
+            console.warn("[rag] pgvector returned no usable match, using in-process vectors");
             semanticRankByDoc = new Map();
             similarityByDoc.clear();
           }
         } catch (err) {
-          console.error("[rag] Pinecone query failed, using in-process vectors:", err);
+          console.error("[rag] pgvector query failed, using in-process vectors:", err);
         }
       }
 
@@ -179,22 +179,22 @@ export async function retrieve(
  * Minimum cosine for a passage to count as genuinely on-topic.
  *
  * Measured, not guessed — `npm run tune:threshold` scores a fixed set of
- * answerable and unanswerable questions against the live corpus:
+ * answerable and unanswerable questions against the live corpus with
+ * multilingual-e5-small:
  *
- *   lowest on-topic   0.739  ("the agent is asking me for money to file a claim")
- *   highest off-topic  0.709 ("who is the prime minister?")
- *   midpoint           0.724
+ *   lowest on-topic   0.837  (Tamil: "crop loan interest in Tamil Nadu")
+ *   highest off-topic 0.798  ("how do I cook biryani")
+ *   midpoint          0.817
  *
- * The previous 0.66 was set against a smaller corpus and had stopped
- * separating anything: "how do I cook biryani" scored 0.701 and "tell me a
- * joke" 0.699, so both passed the gate and only the model's own refusal kept
- * them out. That left the guardrail resting on one component instead of two.
- * Re-run the tuner whenever the corpus changes materially.
+ * e5 scores everything high — unrelated text still lands near 0.75 — so this
+ * number means nothing outside the model it was measured on. It was 0.724
+ * under the previous embedding model. Re-run the tuner whenever the corpus or
+ * EMBED_MODEL changes.
  *
  * This gate matters because rank alone cannot express "nothing here is
  * relevant" — dense retrieval always returns a rank 1, however poor the match.
  */
-const MIN_SIMILARITY = 0.724;
+const MIN_SIMILARITY = Number(process.env.MIN_SIMILARITY ?? 0.817);
 
 export function hasUsableContext(results: RetrievedChunk[]): boolean {
   if (results.length === 0) return false;

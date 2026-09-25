@@ -1,81 +1,66 @@
 /**
- * Embeds the retrieval corpus and upserts it into Pinecone.
+ * Embeds the corpus with multilingual-e5 and writes the vectors to
+ *   1. lib/rag/vectors.json — baked into the build, so a cold start embeds
+ *      only the question and the offline kiosk has every vector;
+ *   2. pgvector on Supabase, when it is configured — the hosted index.
  *
- * Run after any change to knowledge.ts, myths.ts, entitlements.ts or
- * govSources.ts — the index is a copy of the corpus, and a stale copy answers
- * from withdrawn text while citing a clause that has since changed.
+ *   npm run index:corpus
  *
- *   npx tsx --tsconfig tsconfig.json scripts/index-corpus.ts
- *
- * Needs MISTRAL_API_KEY (to embed) and PINECONE_API_KEY (to store).
+ * Re-run whenever a passage in the corpus changes. Retrieval notices a stale
+ * vector (the text hash no longer matches) and embeds it on the fly, but says
+ * so in the logs, because that cost lands on a member's request.
  */
 import { config } from "dotenv";
 config({ path: ".env", quiet: true });
 
+import { writeFileSync } from "node:fs";
+import path from "node:path";
 import { CORPUS } from "@/lib/rag/corpus";
-import { embedTexts } from "@/lib/rag/embeddings";
-import {
-  ensureIndex,
-  getIndex,
-  hasPineconeConfig,
-  pineconeIndexName,
-  EMBED_DIMENSION,
-  type VectorMetadata,
-} from "@/lib/rag/pinecone";
+import { EMBED_DIMENSION, EMBED_MODEL, embedPassages, passageText, textHash } from "@/lib/rag/embeddings";
+import { adminSecret, hasDatabase, rpc } from "@/lib/server/supabase";
 
-const UPSERT_BATCH = 50;
+const OUT = path.join(__dirname, "..", "lib", "rag", "vectors.json");
+const UPSERT_BATCH = 40;
 
 async function main() {
-  if (!process.env.MISTRAL_API_KEY) {
-    throw new Error("MISTRAL_API_KEY is not set — embedding needs it.");
+  console.log(`corpus: ${CORPUS.length} chunks · model ${EMBED_MODEL} (${EMBED_DIMENSION}-dim)`);
+  const inputs = CORPUS.map(passageText);
+  const t0 = Date.now();
+  const vectors = await embedPassages(inputs);
+  console.log(`embedded in ${((Date.now() - t0) / 1000).toFixed(1)}s`);
+
+  const baked = {
+    model: EMBED_MODEL,
+    vectors: Object.fromEntries(
+      CORPUS.map((c, i) => [
+        c.id,
+        // Rounded: six decimals is far below e5's own noise and halves the file.
+        { hash: textHash(inputs[i]), v: vectors[i].map((x) => Math.round(x * 1e6) / 1e6) },
+      ])
+    ),
+  };
+  writeFileSync(OUT, JSON.stringify(baked) + "\n");
+  console.log(`wrote ${OUT}`);
+
+  if (!hasDatabase()) {
+    console.log("SUPABASE_URL not set — skipped pgvector");
+    return;
   }
-  if (!hasPineconeConfig()) {
-    throw new Error(
-      "PINECONE_API_KEY is not set. Create a free account at pinecone.io, then " +
-        "add PINECONE_API_KEY (and optionally PINECONE_INDEX) to .env"
-    );
-  }
 
-  console.log(`corpus: ${CORPUS.length} chunks`);
-  console.log(`index : ${pineconeIndexName()} (dim ${EMBED_DIMENSION}, cosine)`);
-
-  await ensureIndex();
-  console.log("index ready");
-
-  // Same input shape the in-process path embeds, so a passage scores the same
-  // whichever store answers the query.
-  const inputs = CORPUS.map((c) =>
-    c.aliases.length ? `${c.text}\n\nRelated terms: ${c.aliases.join(", ")}` : c.text
-  );
-
-  const vectors = await embedTexts(inputs);
-  console.log(`embedded ${vectors.length} chunks`);
-
-  const records = CORPUS.map((chunk, i) => ({
-    id: chunk.id,
-    values: vectors[i],
-    metadata: {
-      chunkId: chunk.id,
-      text: chunk.text,
-      source: chunk.source,
-      agent: chunk.agent,
-      // Pinecone metadata rejects undefined, and an unverified passage is a
-      // real state worth recording rather than an omission.
-      url: chunk.url ?? "",
-      verifiedOn: chunk.verifiedOn ?? "",
-    } satisfies VectorMetadata,
+  const rows = CORPUS.map((c, i) => ({
+    chunk_id: c.id,
+    agent: c.agent,
+    state: c.state ?? "",
+    model: EMBED_MODEL,
+    text_hash: textHash(inputs[i]),
+    embedding: `[${vectors[i].join(",")}]`,
   }));
-
-  const index = getIndex();
-  for (let i = 0; i < records.length; i += UPSERT_BATCH) {
-    const batch = records.slice(i, i + UPSERT_BATCH);
-    // SDK v8 takes { records }, not a bare array.
-    await index.upsert({ records: batch });
-    console.log(`upserted ${Math.min(i + batch.length, records.length)}/${records.length}`);
+  for (let i = 0; i < rows.length; i += UPSERT_BATCH) {
+    await rpc("admin_upsert_vectors", { p_secret: adminSecret(), p_rows: rows.slice(i, i + UPSERT_BATCH) }, 30000);
+    console.log(`pgvector: upserted ${Math.min(i + UPSERT_BATCH, rows.length)}/${rows.length}`);
   }
-
-  const verified = CORPUS.filter((c) => c.verifiedOn).length;
-  console.log(`\ndone — ${records.length} vectors live, ${verified} carrying a source URL`);
+  const pruned = await rpc<number>("admin_prune_vectors", { p_secret: adminSecret(), p_keep: CORPUS.map((c) => c.id) });
+  console.log(`pgvector: pruned ${pruned} vectors no longer in the corpus`);
 }
 
 main().catch((err) => {

@@ -1,4 +1,5 @@
 import { LangCode, LocalizedText } from "./types";
+import { applyOverlay } from "./i18n.overlay";
 
 export const LANGUAGES: { code: LangCode; label: string; native: string; speechTag: string }[] = [
   { code: "en", label: "English", native: "English", speechTag: "en-IN" },
@@ -7,6 +8,12 @@ export const LANGUAGES: { code: LangCode; label: string; native: string; speechT
   { code: "te", label: "Telugu", native: "తెలుగు", speechTag: "te-IN" },
   { code: "kn", label: "Kannada", native: "ಕನ್ನಡ", speechTag: "kn-IN" },
   { code: "ml", label: "Malayalam", native: "മലയാളം", speechTag: "ml-IN" },
+  { code: "mr", label: "Marathi", native: "मराठी", speechTag: "mr-IN" },
+  { code: "bn", label: "Bengali", native: "বাংলা", speechTag: "bn-IN" },
+  { code: "gu", label: "Gujarati", native: "ગુજરાતી", speechTag: "gu-IN" },
+  { code: "pa", label: "Punjabi", native: "ਪੰਜਾਬੀ", speechTag: "pa-IN" },
+  // Sarvam tags Odia "od", not the ISO "or" used internally.
+  { code: "or", label: "Odia", native: "ଓଡ଼ିଆ", speechTag: "od-IN" },
 ];
 
 /**
@@ -506,6 +513,7 @@ export const STRINGS: Record<string, Dict> = {
     ml: "നിർത്തുക",
   },
 };
+applyOverlay("ui", STRINGS);
 
 /**
  * Interface string lookup with English fallback.

@@ -1,4 +1,5 @@
 import { KNOWLEDGE_BASE } from "./knowledge";
+import { applyOverlay } from "./i18n.overlay";
 import { AgentId, KnowledgeEntry, LangCode, LocalizedText } from "./types";
 
 export interface RouteResult {
@@ -107,3 +108,4 @@ export const AGENT_LABELS: Record<AgentId, LocalizedText> = {
     ml: "പരാതി പരിഹാര ഏജന്റ്",
   },
 };
+applyOverlay("agents", AGENT_LABELS);

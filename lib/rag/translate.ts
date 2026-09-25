@@ -2,7 +2,8 @@ import { LangCode } from "../types";
 import { TTLCache, speechKey } from "../cache";
 // Same endpoint and model as generation, so a tier or model change cannot
 // leave the two paths pointing at different models.
-import { chatFetch, LANG_NAME } from "./generate";
+import { chatFetch, hasChatProvider, LANG_NAME, stripReasoning } from "./generate";
+import { bhashiniTranslate, hasBhashini } from "../speech/bhashini";
 
 /**
  * Stored passages are authored in English and hand-translated into only some
@@ -46,12 +47,22 @@ export async function translatePassage(
   const body = text.trim();
   if (!body || target === "en") return body || null;
 
-  const key = process.env.MISTRAL_API_KEY;
-  if (!key) return null;
-
   const cacheKey = speechKey(body, target);
   const cached = translationCache.get(cacheKey);
   if (cached) return cached;
+
+  // Bhashini's translation models first. A translation that changed a digit
+  // is worse than none on legal text, so one that did is discarded and the
+  // LLM, which is told to copy figures exactly, gets the passage instead.
+  if (hasBhashini()) {
+    const out = await bhashiniTranslate(body, "en", target);
+    if (out && sameDigits(body, out)) {
+      translationCache.set(cacheKey, out);
+      return out;
+    }
+  }
+
+  if (!hasChatProvider()) return null;
 
   try {
     const { res } = await chatFetch(
@@ -68,14 +79,14 @@ export async function translatePassage(
     );
 
     if (!res.ok) {
-      console.error(`[translate] Mistral ${res.status}: ${await res.text()}`);
+      console.error(`[translate] ${res.status}: ${await res.text()}`);
       return null;
     }
 
     const json = (await res.json()) as {
       choices: { message: { content: string } }[];
     };
-    const out = (json.choices?.[0]?.message?.content ?? "").trim();
+    const out = stripReasoning(json.choices?.[0]?.message?.content ?? "");
     if (!out) return null;
 
     translationCache.set(cacheKey, out);
@@ -84,4 +95,21 @@ export async function translatePassage(
     console.error("[translate] failed:", err);
     return null;
   }
+}
+
+/**
+ * Whether every number in the English survives in the translation.
+ *
+ * Indic scripts have their own digits, so both sides are normalised to ASCII
+ * first; only the multiset of numbers is compared, not their position.
+ */
+function sameDigits(source: string, translated: string): boolean {
+  const toAscii = (t: string) =>
+    t.replace(/[\u0966-\u096F\u09E6-\u09EF\u0A66-\u0A6F\u0AE6-\u0AEF\u0B66-\u0B6F\u0BE6-\u0BEF\u0C66-\u0C6F\u0CE6-\u0CEF\u0D66-\u0D6F]/g, (d) =>
+      String((d.charCodeAt(0) - 0x0966) % 16)
+    );
+  const nums = (t: string) => (toAscii(t).match(/\d+(?:[.,]\d+)*/g) ?? []).map((n) => n.replace(/,/g, "")).sort();
+  const a = nums(source);
+  const b = nums(translated);
+  return a.length === b.length && a.every((n, i) => n === b[i]);
 }

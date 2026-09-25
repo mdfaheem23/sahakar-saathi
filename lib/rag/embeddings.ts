@@ -1,94 +1,117 @@
-import { CORPUS } from "./corpus";
-import { mistralFetch } from "./mistralFetch";
+import { CORPUS, Chunk } from "./corpus";
+import BAKED from "./vectors.json";
 
 /**
- * Dense retrieval via Mistral embeddings.
+ * Dense retrieval via multilingual-e5, run in-process.
  *
- * The corpus is small and static, so vectors are computed once and held in
- * module scope for the lifetime of the server process. `scripts/build-index.ts`
- * can bake them into a JSON file for cold-start-free production; without that
- * file we embed lazily on the first request and cache the result.
+ * No embedding API: the model runs inside this server (ONNX, quantised), so a
+ * member's question is never sent anywhere to be embedded, and the same code
+ * embeds on the offline kiosk. e5 was trained with task prefixes and scores
+ * noticeably worse without them — "query: " for questions, "passage: " for
+ * the corpus.
+ *
+ * Corpus vectors are baked into vectors.json by `npm run index:corpus`, keyed
+ * by chunk id and a hash of the embedded text, so a cold start embeds only the
+ * question. A chunk edited since the last bake is embedded lazily and a
+ * warning names the script to re-run.
  */
 
-const EMBED_MODEL = "mistral-embed";
-const EMBED_ENDPOINT = "https://api.mistral.ai/v1/embeddings";
+export const EMBED_MODEL = process.env.EMBED_MODEL ?? "Xenova/multilingual-e5-small";
+export const EMBED_DIMENSION = 384;
 
-let corpusVectors: number[][] | null = null;
-let inflight: Promise<number[][]> | null = null;
+type Extractor = (
+  texts: string[],
+  opts: { pooling: "mean"; normalize: boolean }
+) => Promise<{ tolist(): number[][] }>;
 
-export function hasMistralKey(): boolean {
-  return !!process.env.MISTRAL_API_KEY;
+let extractor: Promise<Extractor> | null = null;
+
+function loadExtractor(): Promise<Extractor> {
+  if (!extractor) {
+    extractor = (async () => {
+      const { pipeline, env } = await import("@huggingface/transformers");
+      // Serverless file systems are read-only outside /tmp.
+      env.cacheDir = process.env.HF_CACHE_DIR ?? (process.env.VERCEL ? "/tmp/hf" : "./.cache/hf");
+      const pipe = await pipeline("feature-extraction", EMBED_MODEL, { dtype: "q8" });
+      return pipe as unknown as Extractor;
+    })().catch((err) => {
+      extractor = null;
+      throw err;
+    });
+  }
+  return extractor;
 }
 
-async function embedBatch(inputs: string[]): Promise<number[][]> {
-  const key = process.env.MISTRAL_API_KEY;
-  if (!key) throw new Error("MISTRAL_API_KEY is not configured");
+export function hasEmbeddings(): boolean {
+  return process.env.DISABLE_EMBEDDINGS !== "1";
+}
 
-  const res = await mistralFetch(
-    EMBED_ENDPOINT,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${key}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ model: EMBED_MODEL, input: inputs }),
-    },
-    "embed"
-  );
+/** What is embedded for a chunk. Aliases carry the multilingual surface forms. */
+export function passageText(c: Pick<Chunk, "text" | "aliases">): string {
+  return c.aliases.length ? `${c.text}\n\nRelated terms: ${c.aliases.join(", ")}` : c.text;
+}
 
-  if (!res.ok) {
-    throw new Error(`Mistral embeddings failed (${res.status}): ${await res.text()}`);
+/** Stable short hash of the embedded text, so a stale baked vector is noticed. */
+export function textHash(s: string): string {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
   }
+  return (h >>> 0).toString(16);
+}
 
-  const json = (await res.json()) as { data: { index: number; embedding: number[] }[] };
-  // The API does not guarantee ordering; place by the index it returns.
-  const out: number[][] = new Array(inputs.length);
-  for (const row of json.data) out[row.index] = row.embedding;
+async function embed(inputs: string[]): Promise<number[][]> {
+  const run = await loadExtractor();
+  const out: number[][] = [];
+  const BATCH = 16;
+  for (let i = 0; i < inputs.length; i += BATCH) {
+    const res = await run(inputs.slice(i, i + BATCH), { pooling: "mean", normalize: true });
+    out.push(...res.tolist());
+  }
   return out;
 }
 
 export async function embedQuery(query: string): Promise<number[]> {
-  const [vec] = await embedBatch([query]);
+  const [vec] = await embed([`query: ${query}`]);
   return vec;
 }
 
-/**
- * Embeds an arbitrary list of texts, batched to stay inside request limits.
- *
- * Shared with the Pinecone indexing script so the vectors stored remotely are
- * produced by the same call as the ones computed in process — a different
- * model or input shape between the two would make the two retrieval paths
- * disagree about what is relevant.
- */
-export async function embedTexts(inputs: string[]): Promise<number[][]> {
-  const BATCH = 32;
-  const vectors: number[][] = [];
-  for (let i = 0; i < inputs.length; i += BATCH) {
-    vectors.push(...(await embedBatch(inputs.slice(i, i + BATCH))));
-  }
-  return vectors;
+/** Embeds corpus-style passages. Shared with the indexing script. */
+export async function embedPassages(texts: string[]): Promise<number[][]> {
+  return embed(texts.map((t) => `passage: ${t}`));
 }
 
-/** Embeds the whole corpus once; concurrent callers share one in-flight call. */
+type Baked = { model: string; vectors: Record<string, { hash: string; v: number[] }> };
+
+let corpusVectors: number[][] | null = null;
+let inflight: Promise<number[][]> | null = null;
+
+/** Corpus vectors, from the bake where current, embedded here where not. */
 export async function getCorpusVectors(): Promise<number[][]> {
   if (corpusVectors) return corpusVectors;
   if (inflight) return inflight;
 
   inflight = (async () => {
-    // Aliases are appended so the embedded passage carries the same
-    // multilingual surface forms the sparse index sees.
-    const inputs = CORPUS.map((c) =>
-      c.aliases.length ? `${c.text}\n\nRelated terms: ${c.aliases.join(", ")}` : c.text
-    );
+    const baked = BAKED as Baked;
+    const usable = baked.model === EMBED_MODEL ? baked.vectors : {};
+    const out: number[][] = new Array(CORPUS.length);
+    const missing: number[] = [];
 
-    const BATCH = 32;
-    const vectors: number[][] = [];
-    for (let i = 0; i < inputs.length; i += BATCH) {
-      vectors.push(...(await embedBatch(inputs.slice(i, i + BATCH))));
+    CORPUS.forEach((c, i) => {
+      const hit = usable[c.id];
+      if (hit && hit.hash === textHash(passageText(c))) out[i] = hit.v;
+      else missing.push(i);
+    });
+
+    if (missing.length) {
+      console.warn(`[rag] ${missing.length} corpus passages not in vectors.json - run npm run index:corpus`);
+      const fresh = await embedPassages(missing.map((i) => passageText(CORPUS[i])));
+      missing.forEach((docIndex, j) => (out[docIndex] = fresh[j]));
     }
-    corpusVectors = vectors;
-    return vectors;
+
+    corpusVectors = out;
+    return out;
   })();
 
   try {
@@ -109,9 +132,4 @@ export function cosineSimilarity(a: number[], b: number[]): number {
   }
   const denom = Math.sqrt(na) * Math.sqrt(nb);
   return denom === 0 ? 0 : dot / denom;
-}
-
-/** Preloads vectors from a baked index, skipping the lazy embed path. */
-export function primeCorpusVectors(vectors: number[][]) {
-  corpusVectors = vectors;
 }

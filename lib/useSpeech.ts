@@ -2,12 +2,13 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { fromSpeechTag } from "./detectLang";
+import { toWav16k } from "./speech/wav";
 import { LangCode } from "./types";
 
-// Real Sarvam-backed speech layer: records mic audio with MediaRecorder and
-// sends it to our /api/stt route (Sarvam STT), and sends text to /api/tts
-// (Sarvam TTS) for spoken replies. The Sarvam API key never reaches the
-// browser — both routes proxy server-side.
+// Speech layer: records mic audio with MediaRecorder and sends it to our
+// /api/stt route, and sends text to /api/tts for spoken replies. Both routes
+// use Bhashini first and Sarvam as the backup. No provider key ever reaches
+// the browser — both routes proxy server-side.
 
 export type SpeechError = "denied" | "too_short" | "failed" | null;
 
@@ -166,12 +167,19 @@ export function useSpeech(speechTag: string) {
 
           setProcessing(true);
           try {
+            // Bhashini needs 16 kHz WAV and the server has no transcoder, so
+            // the browser converts its own recording. If it cannot, the
+            // original clip still goes up and the backup provider handles it.
+            const wav = await toWav16k(blob);
             const extension = baseType.includes("mp4") ? "mp4" : "webm";
             const form = new FormData();
-            form.append("file", blob, `audio.${extension}`);
-            // Left unset so Sarvam auto-detects; the UI language is only a
-            // fallback for when detection returns something we don't serve.
+            if (wav) form.append("file", wav, "audio.wav");
+            else form.append("file", blob, `audio.${extension}`);
+            // Left unset so the backup provider can auto-detect. Bhashini ASR
+            // needs a language, so the member's interface language goes up
+            // alongside as the hint it transcribes in.
             form.append("language_code", "unknown");
+            form.append("hint", fromSpeechTag(speechTag, "en"));
 
             const res = await fetch("/api/stt", { method: "POST", body: form });
             const data = await res.json().catch(() => ({}));

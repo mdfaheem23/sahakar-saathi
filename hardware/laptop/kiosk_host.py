@@ -73,12 +73,15 @@ DIRECT_FALLBACK = os.environ.get("KIOSK_DIRECT_FALLBACK") == "1"
 SPEECH_TAGS = {
     "en": "en-IN", "hi": "hi-IN", "ta": "ta-IN",
     "te": "te-IN", "kn": "kn-IN", "ml": "ml-IN",
+    "mr": "mr-IN", "bn": "bn-IN", "gu": "gu-IN", "pa": "pa-IN", "or": "od-IN",
 }
 
 
 def lang_code(speech_tag: str) -> str:
     """'hi-IN' -> 'hi', falling back to the one language always present."""
     short = (speech_tag or "").split("-")[0].lower()
+    if short == "od":
+        return "or"
     return short if short in SPEECH_TAGS else "en"
 
 

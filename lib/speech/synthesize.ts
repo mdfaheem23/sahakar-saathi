@@ -1,8 +1,10 @@
 import { TTLCache, speechKey } from "@/lib/cache";
+import { fromSpeechTag } from "@/lib/detectLang";
+import { bhashiniSpeak, hasBhashini } from "./bhashini";
 
 /**
- * Sarvam text-to-speech, shared by the browser and hardware endpoints so both
- * hit the same cache and the same voice.
+ * Text-to-speech, shared by the browser and hardware endpoints so both hit the
+ * same cache and the same voice. Bhashini speaks first; Sarvam is the backup.
  */
 
 // Billed per character, and the same answer is read aloud over and over at a
@@ -45,15 +47,31 @@ export async function synthesize(
   languageCode: string,
   sampleRate: number = AUDIO_FORMAT.sampleRate
 ): Promise<SynthesisResult> {
-  const apiKey = process.env.SARVAM_API_KEY;
-  if (!apiKey) throw new Error("SARVAM_API_KEY is not configured");
-
   // The rate is part of the key. Without it the first caller decides the
   // format for everyone: a browser asking first would leave 22050Hz clips
   // under a key the kiosk then reads and plays at 16000Hz.
   const key = `${speechKey(text, languageCode)}@${sampleRate}`;
   const hit = audioCache.get(key);
   if (hit) return { audios: hit, cached: true };
+
+  let audios: string[] | null = null;
+
+  if (hasBhashini()) {
+    const clips = await bhashiniSpeak(text.slice(0, 2500), fromSpeechTag(languageCode, "en"));
+    // Bhashini picks its own output rate. The device cannot change its I2S
+    // clock, so every clip is brought to the rate the caller asked for.
+    if (clips) audios = clips.map((c) => resampleWav(c, sampleRate));
+  }
+
+  if (!audios) audios = await sarvamSpeak(text, languageCode, sampleRate);
+
+  audioCache.set(key, audios);
+  return { audios, cached: false };
+}
+
+async function sarvamSpeak(text: string, languageCode: string, sampleRate: number): Promise<string[]> {
+  const apiKey = process.env.SARVAM_API_KEY;
+  if (!apiKey) throw new Error("No speech provider configured: set BHASHINI_* or SARVAM_API_KEY");
 
   const res = await fetch("https://api.sarvam.ai/text-to-speech", {
     method: "POST",
@@ -76,9 +94,39 @@ export async function synthesize(
   const data = (await res.json()) as { audios?: string[] };
   const audios = data.audios ?? [];
   if (audios.length === 0) throw new Error("Sarvam returned no audio");
+  return audios;
+}
 
-  audioCache.set(key, audios);
-  return { audios, cached: false };
+/**
+ * Re-samples a 16-bit mono WAV clip to `rate`, linearly.
+ *
+ * Speech is band-limited well below either rate, so linear interpolation is
+ * inaudible here; what matters is that the header and the samples agree with
+ * what the speaker will be clocked at.
+ */
+function resampleWav(b64: string, rate: number): string {
+  const buf = Buffer.from(b64, "base64");
+  if (buf.length < 44 || buf.toString("ascii", 0, 4) !== "RIFF") return b64;
+  const srcRate = buf.readUInt32LE(24);
+  const channels = buf.readUInt16LE(22);
+  const bits = buf.readUInt16LE(34);
+  if (srcRate === rate || channels !== 1 || bits !== 16) return b64;
+
+  const dataIdx = buf.indexOf("data", 12, "ascii");
+  const start = dataIdx >= 0 ? dataIdx + 8 : AUDIO_FORMAT.headerBytes;
+  const src = buf.subarray(start);
+  const inSamples = Math.floor(src.length / 2);
+  const outSamples = Math.floor((inSamples * rate) / srcRate);
+  const out = Buffer.alloc(outSamples * 2);
+  for (let i = 0; i < outSamples; i++) {
+    const pos = (i * srcRate) / rate;
+    const j = Math.floor(pos);
+    const frac = pos - j;
+    const a = src.readInt16LE(Math.min(j, inSamples - 1) * 2);
+    const b = src.readInt16LE(Math.min(j + 1, inSamples - 1) * 2);
+    out.writeInt16LE(Math.round(a + (b - a) * frac), i * 2);
+  }
+  return Buffer.concat([wavHeader(out.length, rate), out]).toString("base64");
 }
 
 /**
