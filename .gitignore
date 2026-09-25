@@ -41,3 +41,14 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# python
+__pycache__/
+*.pyc
+
+# SIH submission material — kept local, never published
+*.pptx
+*.ppt
+/gen.py
+/build_sih_deck.py
+/docs/SIH-judge-questions.pdf

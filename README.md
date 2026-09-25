@@ -1,36 +1,38 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Sahakar Saathi
 
-## Getting Started
+A multilingual voice assistant for Primary Agricultural Credit Societies (PACS), built for **Smart India Hackathon 2026, problem statement PS26088**.
 
-First, run the development server:
+Farmers ask about crop insurance (PMFBY), Kisan Credit Card loans and cooperative schemes by voice, in six Indian languages. They get a spoken answer that cites its government source. The system also checks that the source is still current.
+
+## What's in here
+
+| Path | What it is |
+|------|------------|
+| `app/` | Next.js app: web chat, kiosk UI, entitlements, grievances, admin and alerts dashboards, receipt verification |
+| `app/api/` | Speech-to-text, text-to-speech, question answering (plain and streaming), receipts, daily source-check cron |
+| `lib/rag/` | Retrieval (BM25 + embeddings, optional Pinecone) and grounded answer generation |
+| `lib/sources/` | Registry of government sources and the checks that flag changed documents or dead portals |
+| `hardware/` | ESP32 kiosk firmware, microphone test sketches, and the laptop host script |
+| `scripts/` | Corpus indexing, retrieval evaluation, threshold tuning, source checks |
+
+## Running locally
 
 ```bash
+npm install
+cp .env.example .env   # add your Sarvam and Mistral keys
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open http://localhost:3000. Every variable is documented in `.env.example`. Pinecone is optional: without it, retrieval runs on in-process embeddings.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Other scripts:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm run index:corpus     # push the corpus to Pinecone
+npm run eval:retrieval   # retrieval accuracy over the test cases
+npm run check:sources    # re-verify the government sources now
+```
 
-## Learn More
+## Hardware
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Before flashing `hardware/esp32-kiosk/esp32-kiosk.ino`, set `WIFI_SSID` and `WIFI_PASS` to your network. The ESP32 only supports 2.4 GHz.
